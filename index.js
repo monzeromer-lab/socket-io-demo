@@ -12,7 +12,7 @@ const mongoose = require("mongoose");
 const locationSchema = new mongoose.Schema({
   latitude: Number,
   longitude: Number,
-  at: { type: Date, default: Date.now },
+  at: { type: Date, default: Date.now() },
 });
 
 const Location = mongoose.model("Location", locationSchema);
@@ -26,6 +26,7 @@ function getFakeLocation() {
   return {
     latitude: Fakerjs.allFakers.en.location.latitude(),
     longitude: Fakerjs.allFakers.en.location.longitude(),
+    at: Date.now() ,
   };
 }
 
@@ -35,10 +36,7 @@ const io = new Server(httpServer);
 
 // connect to the database
 mongoose
-  .connect(process.env.MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  })
+  .connect(process.env.MONGODB_URI)
   .then(() => {
     console.log("MongoDB Connected...");
 
@@ -48,13 +46,15 @@ mongoose
         console.log("Got data", arg1);
       });
 
-      rawSocket.on("saveLocation", (arg1) => {
-        // Assuming arg1 is an object with latitude and longitude properties
-        const newLocation = new Location(arg1);
+      rawSocket.on("saveLocation", (arg) => {
+        console.log(arg);
+        const newLocation = new Location(getFakeLocation());
         newLocation
           .save()
           .then(() => console.log("Location saved"))
           .catch((err) => console.log("Error saving location:", err));
+        
+          io.send("locationSaved");
       });
 
       // server B
@@ -66,8 +66,34 @@ mongoose
         console.log("Got data", arg1);
       });
       log("connection", rawSocket.id);
+
+      rawSocket.on('joinRoom', (roomId) => {
+        rawSocket.join(roomId);
+    
+        // Send the current location to the client
+        rawSocket.emit('locationUpdate', getFakeLocation());
+    
+        // Listen for location updates from the client
+        rawSocket.on('locationUpdate', (newLocation) => {
+
+          // Broadcast the new location to all other clients in the room
+          rawSocket.to(roomId).emit('locationUpdate', getFakeLocation());
+        });
+      });
+
+      rawSocket.on('leaveRoom', (roomId) => {
+        rawSocket.leave(roomId);
+      });
+
+      rawSocket.on("disconnect", () => {
+        log("disconnect", rawSocket.id);
+      });
+
+
     });
   });
+
+
 
 app.set("view engine", "ejs");
 

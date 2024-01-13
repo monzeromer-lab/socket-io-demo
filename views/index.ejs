@@ -8,7 +8,16 @@
 </head>
 <body>
     <button type="button" onclick="send()">Save a location</button>
+    <button type="button" onclick="join()">Join the room</button>
+    <div id="locations">
+
+    </div>
     <script>
+        function addLocationToView(newLocation) {
+            const locations = document.getElementById("locations");
+            locations.appendChild(document.createElement("p").innerText(`[${Date.now()}] latitude: ${newLocation.latitude}, longitude: ${newLocation.longitude}, time: ${newLocation.at}`))
+        }
+
         var socket = io.connect('http://localhost:3000');
         socket.on('connect', function(data) {
             console.log('connected');
@@ -19,6 +28,14 @@
 
         function send() {
             socket.emit('hello', 'Hello World from client');
+        }
+
+        function saveLocation () {
+            socket.emit("saveLocation", "New Location Will be Saved Using this event")
+        }
+
+        function join() {
+            socket.emit('joinRoom', "idkSomeRoomId");
         }
     </script>
 </body>
